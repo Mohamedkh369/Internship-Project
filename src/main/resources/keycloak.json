@@ -1,0 +1,7 @@
+{
+  "realm": "Stage-SpringBoot-Angular",
+  "auth-server-url": "https://localhost:8080/auth",
+
+  "resource": "studentClient"
+
+}

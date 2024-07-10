@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: Stage-spring-angular
+  datasource:
+    url: jdbc:h2:mem:students_db
+  h2:
+    console:
+      enabled: true
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+  mvc:
+    format:
+      date: d/M/yyyy
+
+
+
+  security:
+    oauth2:
+      resourceserver:
+          jwt:
+            issuer-uri: http://localhost:8080/realms/TestRealm
+            jwk-set-uri: ${spring.security.oauth2.resourceserver.jwt.issuer-uri}/protocol/openid-connect/certs
+      client:
+        registration:
+          keycloak:
+            client-id: stage_client
+            authorization-grant-type: password
+
+server:
+  port: 8021
+
+
+keycloak:
+  server-url: http://localhost:8080
+  realm: TestRealm
+  client-id: stage_client
+  clientSecret: M9smGwF5aS8nxAz0NjJ1zJBG8B6Fuy6y
+  username: mohamedkhlifi
+  password: 1212
