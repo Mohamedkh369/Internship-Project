@@ -1,12 +1,16 @@
 package com.example.stagespringangular.web;
+import com.example.stagespringangular.dtos.GroupDTO;
+import com.example.stagespringangular.dtos.RoleDTO;
 import com.example.stagespringangular.dtos.UserDTO;
 import com.example.stagespringangular.services.KeyCloakAdminService;
+import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import javax.management.relation.Role;
 import java.util.List;
 
 @RestController
@@ -69,5 +73,31 @@ public class DemoController {
     public UserDTO getUserById(@PathVariable("userId") String userId) {
         return keyCloakAdminService.getUserById(userId) ;
     }
+
+    @GetMapping("/getGroups")
+    public List<GroupDTO> getGroups() {
+        return keyCloakAdminService.getGroups();
+    }
+
+    @GetMapping("/roles")
+    public List<RoleDTO> getRealmRoles() {
+        return keyCloakAdminService.getRealmRoles("stage_client");
+    }
+
+    @PostMapping("/createRole")
+    public ResponseEntity<String> createRole(@RequestBody RoleDTO roleDTO) {
+        keyCloakAdminService.createRole(roleDTO);
+        return ResponseEntity.ok("Role created successfully");
+    }
+
+
+
+    @PostMapping("/createGroup")
+    public ResponseEntity<String> createGroup(@RequestBody String groupName) {
+        keyCloakAdminService.createGroup(groupName);
+        return ResponseEntity.ok("Group created successfully");
+    }
+
+
 
 }

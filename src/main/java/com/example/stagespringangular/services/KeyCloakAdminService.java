@@ -1,17 +1,23 @@
 package com.example.stagespringangular.services;
 
+import com.example.stagespringangular.dtos.GroupDTO;
+import com.example.stagespringangular.dtos.RoleDTO;
 import com.example.stagespringangular.dtos.UserDTO;
 import jakarta.annotation.PostConstruct;
 import jakarta.ws.rs.core.Response;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
+import org.keycloak.admin.client.resource.ClientResource;
+import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.representations.idm.CredentialRepresentation;
+import org.keycloak.representations.idm.GroupRepresentation;
+import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class KeyCloakAdminService {
@@ -100,6 +106,70 @@ public class KeyCloakAdminService {
         return userDTO;
     }
 
+    public List<GroupDTO> getGroups() {
+        List<GroupRepresentation> groups = keycloak.realm(realm).groups().groups();
+        return groups.stream()
+                .map(groupRepresentation -> {
+                    GroupDTO groupDTO = new GroupDTO();
+                    groupDTO.setName(groupRepresentation.getName());
+                    groupDTO.setAttributes(groupRepresentation.getAttributes());
+                    return groupDTO;
+                })
+                .collect(Collectors.toList());
+    }
+
+    public List<RoleDTO> getClientRoles(String clientId) {
+        RealmResource realmResource = keycloak.realm(realm);
+        ClientResource clientResource = realmResource.clients().get(clientId);
+        List<RoleRepresentation> roles =clientResource.roles().list();
+
+        List<RoleDTO> roleDTOs = new ArrayList<>();
+
+        for (RoleRepresentation role : roles) {
+            RoleDTO roleDTO = new RoleDTO();
+            roleDTO.setName(role.getName());
+            roleDTO.setDescription(role.getDescription());
+            roleDTO.setComposite(role.isComposite());
+            roleDTOs.add(roleDTO);
+        }
+
+            return roleDTOs;
+        }
+
+    public List<RoleDTO> getRealmRoles(String cliendid) {
+        List<RoleRepresentation> roles = keycloak.realm(realm).roles().list();
+        List<RoleDTO> roleDTOs = new ArrayList<>();
+
+        for (RoleRepresentation role : roles) {
+            RoleDTO roleDTO = new RoleDTO();
+            roleDTO.setName(role.getName());
+            roleDTO.setDescription(role.getDescription());
+            roleDTO.setComposite(role.isComposite());
+            roleDTOs.add(roleDTO);
+        }
+
+
+
+        return roleDTOs;
+
+    }
+
+    public void createRole(RoleDTO roleDTO) {
+        RoleRepresentation roleRepresentation = new RoleRepresentation();
+        roleRepresentation.setName(roleDTO.getName());
+        roleRepresentation.setDescription(roleDTO.getDescription());
+        roleRepresentation.setComposite(false);
+        keycloak.realm(realm).roles().create(roleRepresentation);
+    }
+
+    public void createGroup(String groupName) {
+        RealmResource realmResource = keycloak.realm(realm);
+
+        GroupRepresentation groupRepresentation = new GroupRepresentation();
+        groupRepresentation.setName(groupName);
+
+        realmResource.groups().add(groupRepresentation);
+    }
 
 
 }
