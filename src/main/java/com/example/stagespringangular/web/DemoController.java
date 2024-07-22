@@ -1,32 +1,53 @@
 package com.example.stagespringangular.web;
-import com.example.stagespringangular.dtos.GroupDTO;
-import com.example.stagespringangular.dtos.RoleDTO;
-import com.example.stagespringangular.dtos.UserDTO;
+import com.example.stagespringangular.dtos.*;
+import com.example.stagespringangular.entities.AppUser;
+import com.example.stagespringangular.entities.VerificationToken;
+import com.example.stagespringangular.repository.AppUserRepository;
+import com.example.stagespringangular.repository.VerificationTokenRepository;
+import com.example.stagespringangular.services.EmailService;
 import com.example.stagespringangular.services.KeyCloakAdminService;
-import org.keycloak.representations.idm.RoleRepresentation;
+import org.keycloak.admin.client.Keycloak;
+import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import javax.management.relation.Role;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/keycloak-api/test")
 public class DemoController {
 
+    private final EmailService emailService;
+
+    @Autowired
+    private Keycloak keycloak;
+
+
+    @Autowired
+    private VerificationTokenRepository verificationTokenRepository;
+
+    @Autowired
+    private AppUserRepository userRepository;
+
     @Autowired
     private KeyCloakAdminService keyCloakAdminService;
 
-    public DemoController(KeyCloakAdminService keycloakAdminService) {
+    public DemoController(KeyCloakAdminService keycloakAdminService , EmailService emailService, Keycloak keycloak) {
         this.keyCloakAdminService = keycloakAdminService;
+        this.emailService=emailService;
+        this.keycloak = keycloak;
     }
 
 
     @PostMapping("create")
     public ResponseEntity<String> createUser(@RequestBody UserDTO userDTO) {
+
+        keyCloakAdminService.verifyUserEmail(userDTO);
+
         String result = keyCloakAdminService.createUser(userDTO.getUsername(), userDTO.getPassword(), userDTO.getEmail(),
                 userDTO.getFirstName(), userDTO.getLastName());
         if (result.equals("User created successfully")) {
@@ -35,9 +56,24 @@ public class DemoController {
             System.out.println("zzzzzzzzzzzzzzzzzzzz");
             System.out.println(userDTO.toString());
             return ResponseEntity.status(500).body(result);
-
         }
+
     }
+
+    @GetMapping("/getAllUsers")
+    public List<AppUser> getAllAppUsers() {
+        return userRepository.findAll();
+    }
+
+
+    @GetMapping("/verify")
+    public void verify(@RequestParam String token){
+        if((emailService.verifyAccount(token)).equals(ResponseEntity.ok("Account verified successfully"))) {
+            this.keyCloakAdminService.makeUserEnabled(token);
+        }
+
+    }
+
 
     @GetMapping("view-users")
     public ResponseEntity<List<UserRepresentation>> getUsers() {
@@ -97,6 +133,15 @@ public class DemoController {
         keyCloakAdminService.createGroup(groupName);
         return ResponseEntity.ok("Group created successfully");
     }
+
+
+    @PutMapping("/addUserToGroup")
+    public void addUserToGroup(@RequestBody UserToGroupDTO userToGroupDTO) {
+        keyCloakAdminService.assignUserToGroup(userToGroupDTO);
+    }
+
+
+
 
 
 
