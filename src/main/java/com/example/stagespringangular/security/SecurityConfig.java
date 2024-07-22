@@ -20,9 +20,10 @@ public class SecurityConfig {
                 .disable()
                 .authorizeRequests()
                 .requestMatchers("/login").permitAll()
+                .requestMatchers("keycloak-api/test/verify").permitAll()
 
                 .anyRequest()
-                .authenticated()
+                .permitAll()
 
                         .and()
 

@@ -3,24 +3,39 @@ package com.example.stagespringangular.services;
 import com.example.stagespringangular.dtos.GroupDTO;
 import com.example.stagespringangular.dtos.RoleDTO;
 import com.example.stagespringangular.dtos.UserDTO;
+import com.example.stagespringangular.dtos.UserToGroupDTO;
+import com.example.stagespringangular.entities.AppUser;
+import com.example.stagespringangular.entities.VerificationToken;
+import com.example.stagespringangular.repository.AppUserRepository;
+import com.example.stagespringangular.repository.VerificationTokenRepository;
 import jakarta.annotation.PostConstruct;
 import jakarta.ws.rs.core.Response;
+import lombok.Data;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
-import org.keycloak.admin.client.resource.ClientResource;
-import org.keycloak.admin.client.resource.RealmResource;
+import org.keycloak.admin.client.resource.*;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.GroupRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Data
 @Service
 public class KeyCloakAdminService {
+    @Autowired
+    private VerificationTokenRepository verificationTokenRepository;
+    @Autowired
+    private  EmailService emailService;
+    @Autowired
+    private AppUserRepository appUserRepository;
+
 
     private Keycloak keycloak;
     @Value("${keycloak.server-url}")
@@ -41,6 +56,10 @@ public class KeyCloakAdminService {
     @Value("${keycloak.password}")
     private String adminPassword ;
 
+    public KeyCloakAdminService(EmailService emailService) {
+        this.emailService = emailService;
+    }
+
     @PostConstruct
     public void init() {
         keycloak = KeycloakBuilder.builder()
@@ -57,10 +76,10 @@ public class KeyCloakAdminService {
         UserRepresentation user = new UserRepresentation();
         user.setFirstName(firstName);
         user.setLastName(lastName);
-        user.setEnabled(true);
+        user.setEnabled(false);
         user.setUsername(username);
         user.setEmail(email);
-        user.setRealmRoles(Collections.singletonList("user"));  // Assigning a default role
+        user.setRealmRoles(Collections.singletonList("user"));
 
         CredentialRepresentation credential = new CredentialRepresentation();
         credential.setTemporary(false);
@@ -74,7 +93,9 @@ public class KeyCloakAdminService {
         } else {
             return "Failed to create user: " + response.getStatusInfo().getReasonPhrase();
         }
+
     }
+
 
     public List<UserRepresentation> getUsers(){
 
@@ -170,6 +191,79 @@ public class KeyCloakAdminService {
 
         realmResource.groups().add(groupRepresentation);
     }
+
+    public List<UserRepresentation> getUsersByUsername(String username) {
+        RealmResource realmResource = keycloak.realm(realm);
+        UsersResource usersResource = realmResource.users();
+
+        List<UserRepresentation> users = usersResource.search(username);
+        return users;
+    }
+
+    public void assignUserToGroup(UserToGroupDTO dto) {
+        RealmResource realmResource = keycloak.realm(realm);
+        UsersResource usersResource = realmResource.users();
+
+        List<UserRepresentation> users = usersResource.search(dto.getUsername());
+        if (users.isEmpty()) {
+            throw new IllegalArgumentException("User not found: " + dto.getUsername());
+        }
+
+        UserRepresentation user = users.get(0);
+
+        String groupId = realmResource.groups().groups().stream()
+                .filter(group -> group.getName().equals(dto.getGroupName()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Group not found: " + dto.getGroupName()))
+                .getId();
+
+        usersResource.get(user.getId()).joinGroup(groupId);
+    }
+
+
+    public void verifyUserEmail(UserDTO userDTO){
+
+    AppUser appUser = new AppUser();
+
+    appUser.setFirstName(userDTO.getFirstName());
+    appUser.setLastName(userDTO.getLastName());
+    appUser.setEmail(userDTO.getEmail());
+    appUser.setPassword(userDTO.getPassword());
+    appUser.setUsername(userDTO.getUsername());
+    this.appUserRepository.save(appUser);
+
+
+        String token = UUID.randomUUID().toString();
+    VerificationToken verificationToken = new VerificationToken();
+    verificationToken.setToken(token);
+    verificationToken.setAppUser(appUser);
+    verificationToken.setExpiryDate(LocalDateTime.now().plusHours(24));
+    verificationTokenRepository.save(verificationToken);
+
+    String verificationURL = "http://localhost:8021/keycloak-api/test/verify?token=" + token;
+    this.emailService.sendVerificationEmail(userDTO.getEmail(),userDTO.getUsername(),verificationURL);
+
+
+
+    }
+
+
+    public void makeUserEnabled(String token) {
+        AppUser appUser = new AppUser();
+        Optional<VerificationToken> optionalVerificationToken = this.verificationTokenRepository.findByToken(token);
+        if (optionalVerificationToken.isPresent()) {
+            appUser = optionalVerificationToken.get().getAppUser();
+        }
+
+        RealmResource realmResource = this.getKeycloak().realm(this.realm);
+        List<UserRepresentation> userRepresentation = realmResource.users().search(appUser.getUsername(), true);
+        UserRepresentation user = userRepresentation.get(0);
+        user.setEnabled(true);
+        this.keycloak.realm(this.realm).users().get(user.getId()).update(user);
+
+
+    }
+
 
 
 }

@@ -1,17 +1,41 @@
 spring:
   application:
     name: Stage-spring-angular
-  datasource:
-    url: jdbc:h2:mem:students_db
+
+
   h2:
+    datasource:
+      url: jdbc:h2:mem:students_db
     console:
       enabled: true
+
+
+  datasource:
+    mysql:
+      url: jdbc:mysql://localhost:3307/stage_db?useSSL=false&serverTimezone=UTC
+      username: root
+      password: root
   autoconfigure:
     exclude: org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
   mvc:
     format:
       date: d/M/yyyy
 
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: mohamedkhlifi97@gmail.com
+    password: udxlplahjzjabnrx
+
+
+
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 
   security:
@@ -37,3 +61,4 @@ keycloak:
   clientSecret: M9smGwF5aS8nxAz0NjJ1zJBG8B6Fuy6y
   username: mohamedkhlifi
   password: 1212
+
